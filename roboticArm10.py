@@ -1,6 +1,5 @@
 import pygame
 import math
-from autoforenumpy2 import AutoFore
 import time
 import random
 import numpy as np
@@ -11,6 +10,7 @@ import matplotlib.pyplot as plt
 from concurrent.futures import ProcessPoolExecutor
 import itertools
 from collections import defaultdict
+from autoforenumpy3 import AutoFore
 
 class Parameters:
 	def __init__(self,graphic=True,population=10,segments=5,seed=0):
@@ -246,14 +246,15 @@ class RoboticArm:
 			#nn.applyDelta(learning_rate,suberror.id2)
 			if ronda%p.checkExitEach==0:
 				minId=error.minId()
-				minErrorPerSegment=error.value(minId)/segments
-				print("Segments:",segments,"Population:",pulation,"Seed:",p.random_seed,"Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
-				#print( "Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
-				if minErrorPerSegment<p.convergence:
-					self.time=time.time()-since
-					self.rounds=ronda
-					self.segmentError=minErrorPerSegment
-					break
+				if 0<=minId:
+					minErrorPerSegment=error.value(minId)/segments
+					print("Segments:",segments,"Population:",pulation,"Seed:",p.random_seed,"Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
+					#print( "Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
+					if minErrorPerSegment<p.convergence:
+						self.time=time.time()-since
+						self.rounds=ronda
+						self.segmentError=minErrorPerSegment
+						break
 
 			doit=ronda%changePopulationEach==0
 			willDie=error.geneticAlgorithm(doit=doit,killdown=(self.p.population-1)//2)
@@ -308,9 +309,9 @@ class RoboticArm:
 
 # Suponiendo que RoboticArm y Parameters ya están definidos
 def run_robotic_arm(population):
-    """Función para inicializar el RoboticArm con el parámetro population."""
-    ra = RoboticArm(Parameters(graphic=False, population=population, segments=3))
-    return population, ra.time, ra.rounds, ra.segmentError
+	"""Función para inicializar el RoboticArm con el parámetro population."""
+	ra = RoboticArm(Parameters(graphic=False, population=population, segments=3))
+	return population, ra.time, ra.rounds, ra.segmentError
 
 # Suponiendo que RoboticArm y Parameters ya están definidos
 def run_robotic_arm(params):
@@ -421,7 +422,7 @@ if __name__ == '__main__':
 	# Generar todas las combinaciones de parámetros
 	parameter_combinations = list(itertools.product(populations, segments, seeds))
 
-	RoboticArm(Parameters(graphic=True, population=10, segments=4, seed=123))
+	RoboticArm(Parameters(graphic=True, population=1, segments=4, seed=123))
 
 	# Ejecutar en paralelo con todos los núcleos disponibles
 	results = []

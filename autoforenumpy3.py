@@ -12,7 +12,6 @@ import time
 
 import math,time
 import numpy as np
-from autofore import ejemplo_red_neuronal_polinomios
 
 
 
@@ -368,6 +367,8 @@ class Variable:
 		self.nn.delta=0
 	
 	def minId(self):
+		if self.nn.poblacion<=1:
+			return -1
 		#fuera=Dentro("minId")
 		i=1
 		min=self.nn.value[self.id2,0]
