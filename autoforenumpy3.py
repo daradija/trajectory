@@ -94,8 +94,13 @@ class AutoFore:
 		self.g[dest, :, :] = exponent * (self.value[src, :, np.newaxis] ** (exponent - 1)) * self.g[src, :, :]
 
 	def top(self,dest,src,limit):
-		self.value[dest] = np.where(self.value[src] > limit, self.value[src], 0)
-		self.g[dest] = np.where(self.value[src] > limit, self.g[src], 0)
+		self.value[dest] = np.where(self.value[src] > self.value[limit], self.value[limit], self.value[src])
+		self.g[dest] = self.g[src]
+
+	def bottom(self,dest,src,limit):
+		self.value[dest] = np.where(self.value[src] < self.value[limit], self.value[limit], self.value[src])
+		self.g[dest] = self.g[src]
+
 	# def cos(self,dest,src):
 	# 	self.value[dest] = np.cos(self.value[src])
 	# 	for idx in range(self.value.shape[1]):
@@ -567,6 +572,11 @@ class Variable:
 		v=self.nn.midVar()
 		self.nn.div(v.id2,self.id2,other.id2)
 		return v
+	
+	def ensureInterval(self,fromValue,toValue):
+		self.nn.top(self.id2,self.id2,toValue.id2)
+		self.nn.bottom(self.id2,self.id2,fromValue.id2)
+		return self
 
 outTime={}
 inTime={}

@@ -94,6 +94,7 @@ class Arm:
 		self.y=c[1][2]
 		
 		if self.p.graphic:
+			print(self._fromPoint(center,id),self._fromPoint(c,id))
 			pygame.draw.line(screen, color, self._fromPoint(center,id), self._fromPoint(c,id) , 5)
 
 		for child in self.children:
@@ -189,8 +190,8 @@ class Planer:
 		# calcula el producto escalar 
 		for c in arm:
 			if p.trajetoryProblem:
-				angle_grad_y=b.y.get(c.angle,0)
-				angle_grad_x=b.x.get(c.angle,0)
+				angle_grad_y=b.y
+				angle_grad_x=b.x
 			else:
 				angle_grad_y=b.y.get(c.angle,0)
 				angle_grad_x=b.x.get(c.angle,0)
@@ -198,11 +199,16 @@ class Planer:
 			producto_escalar=x_n*angle_grad_x+y_n*angle_grad_y
 			angle_velocity=norm*(p.max_angle_velocity/100)
 			#angle_velocity=p.max_angle_velocity
+
+			# if producto_escalar>angle_velocity:
+			# 	producto_escalar=angle_velocity
+			# if producto_escalar<-angle_velocity:
+			# 	producto_escalar=-angle_velocity
+
+			producto_escalar.ensureInterval(-angle_velocity,angle_velocity)
+
+			print(producto_escalar.value(0),angle_velocity.value(0))
 			
-			if producto_escalar>angle_velocity:
-				producto_escalar=angle_velocity
-			if producto_escalar<-angle_velocity:
-				producto_escalar=-angle_velocity
 			c.setAngle(c.angle+producto_escalar)
 
 class RoboticArm:
