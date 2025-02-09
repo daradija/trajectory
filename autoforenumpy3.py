@@ -89,6 +89,13 @@ class AutoFore:
 		self.value[dest] = self.value[src1] - self.value[src2]	
 		self.g[dest] = self.g[src1] - self.g[src2]
 
+	def pow(self, dest, src, exponent):
+		self.value[dest] = self.value[src] ** exponent
+		self.g[dest, :, :] = exponent * (self.value[src, :, np.newaxis] ** (exponent - 1)) * self.g[src, :, :]
+
+	def top(self,dest,src,limit):
+		self.value[dest] = np.where(self.value[src] > limit, self.value[src], 0)
+		self.g[dest] = np.where(self.value[src] > limit, self.g[src], 0)
 	# def cos(self,dest,src):
 	# 	self.value[dest] = np.cos(self.value[src])
 	# 	for idx in range(self.value.shape[1]):
@@ -468,6 +475,12 @@ class Variable:
 		# 		for name,value in enumerate(child.forward):
 		# 			v.forward[name]+=value
 		return v
+	
+	def __pow__(self, exponent):
+		self.checkFirma()
+		v = self.nn.midVar()
+		self.nn.pow(v.id2, self.id2, exponent)
+		return v
 
 	def __radd__(self, other):
 		return self.__add__(other)
@@ -491,19 +504,6 @@ class Variable:
 		#fuera()
 		return v
 	
-	def __pow__(self, exponent):
-		self.checkFirma()
-		# Crear una nueva variable para el resultado
-		v = self.nn.midVar()
-		
-		# Calcular el valor de la potencia
-		v.value = self.value ** exponent
-		
-		# Calcular la pasada forward para los gradientes
-		for name, value in enumerate(self.forward):
-			v.forward[name] = exponent * (self.value ** (exponent - 1)) * value
-		
-		return v
 
 	def __neg__(self):
 		self.checkFirma()

@@ -37,6 +37,9 @@ class Parameters:
 		self.segment_max_size=200
 		self.random_seed=seed
 
+		self.convergenceProblem=False
+		self.trajetoryProblem=True
+
 
 class Transform:
 	def __init__(self,nn):
@@ -74,6 +77,7 @@ class Arm:
 		self.rota=Transform(nn)
 		self.children=[]
 		self.angle=nn.val(0)
+		self.visible=[True]*nn.poblacion
 
 	def setAngle(self,angle):
 		#nn=self.nn
@@ -81,6 +85,8 @@ class Arm:
 		self.rota.rotate(self.angle)
 
 	def draw(self,screen,center,id,color):
+		if not self.visible[id]:
+			return
 		b=self.matrix_multiplication(center,self.rota.matrix)
 		c= self.matrix_multiplication(b,self.size.matrix)
 		
@@ -151,6 +157,53 @@ class Eye:
 		#error=angle.tanh()-np.tanh(angle.value(0))
 		return error
 
+class Planer:
+	def __init__(self,p,arm):
+		self.p=p
+		self.arm=arm
+
+		# Only the first individual is visible
+		if p.trajetoryProblem:
+			for i in range(self.p.population):
+				for a in self.arm:
+					a.visible[i]=i==0
+
+	def moveTo(self,circle_position,b):
+		arm=self.arm
+		p=self.p
+		# halla el vector normalizado
+		if p.trajetoryProblem:
+			x_n=-(b.x-circle_position[0])
+			y_n=-(b.y-circle_position[1])
+			norm=(x_n**2+y_n**2) ** 0.5
+		else:
+			x_n=circle_position[0]-b.x.value(0)
+			y_n=circle_position[1]-b.y.value(0)
+			norm=math.sqrt(x_n**2+y_n**2)
+		#norm=20000
+		x_n=x_n/norm
+		y_n=y_n/norm
+		# lo dibuja
+		#pygame.draw.line(screen, p.black, (b.x.value(0),b.y.value(0)), (b.x.value(0)+x_n*30,b.y.value(0)+y_n*30) , 1)
+
+		# calcula el producto escalar 
+		for c in arm:
+			if p.trajetoryProblem:
+				angle_grad_y=b.y.get(c.angle,0)
+				angle_grad_x=b.x.get(c.angle,0)
+			else:
+				angle_grad_y=b.y.get(c.angle,0)
+				angle_grad_x=b.x.get(c.angle,0)
+
+			producto_escalar=x_n*angle_grad_x+y_n*angle_grad_y
+			angle_velocity=norm*(p.max_angle_velocity/100)
+			#angle_velocity=p.max_angle_velocity
+			
+			if producto_escalar>angle_velocity:
+				producto_escalar=angle_velocity
+			if producto_escalar<-angle_velocity:
+				producto_escalar=-angle_velocity
+			c.setAngle(c.angle+producto_escalar)
 
 class RoboticArm:
 	def __init__(self, p):
@@ -189,6 +242,7 @@ class RoboticArm:
 				arm[-1].addChildren(a)
 			arm.append(a)		
 
+		pl=Planer(p,arm)
 		a=arm[0]
 		b=arm[-1]
 		
@@ -214,7 +268,6 @@ class RoboticArm:
 			if p.graphic:
 				screen.fill(p.white)
 
-
 			for pob in range(pulation-1,-1,-1):
 				if pob in willDie:
 					color=p.red
@@ -223,6 +276,7 @@ class RoboticArm:
 				if pob==0:
 					color=p.blue
 				a.draw(screen,center.matrix,pob,color=color)
+
 				if not error is None:
 					error=error+0
 
@@ -270,29 +324,32 @@ class RoboticArm:
 			# 	error=None
 
 			if circle_position:
-				# halla el vector normalizado
-				x_n=circle_position[0]-b.x.value(0)
-				y_n=circle_position[1]-b.y.value(0)
-				norm=math.sqrt(x_n**2+y_n**2)
-				#norm=20000
-				x_n=x_n/norm
-				y_n=y_n/norm
-				# lo dibuja
-				#pygame.draw.line(screen, p.black, (b.x.value(0),b.y.value(0)), (b.x.value(0)+x_n*30,b.y.value(0)+y_n*30) , 1)
+				pl.moveTo(circle_position,b)
 
-				# calcula el producto escalar 
-				for c in arm:
-					angle_grad_y=b.y.get(c.angle,0)
-					angle_grad_x=b.x.get(c.angle,0)
 
-					producto_escalar=x_n*angle_grad_x+y_n*angle_grad_y
-					angle_velocity=p.max_angle_velocity*norm/100
-					#angle_velocity=p.max_angle_velocity
-					if producto_escalar>angle_velocity:
-						producto_escalar=angle_velocity
-					if producto_escalar<-angle_velocity:
-						producto_escalar=-angle_velocity
-					c.setAngle(c.angle+producto_escalar)
+				# # halla el vector normalizado
+				# x_n=circle_position[0]-b.x.value(0)
+				# y_n=circle_position[1]-b.y.value(0)
+				# norm=math.sqrt(x_n**2+y_n**2)
+				# #norm=20000
+				# x_n=x_n/norm
+				# y_n=y_n/norm
+				# # lo dibuja
+				# #pygame.draw.line(screen, p.black, (b.x.value(0),b.y.value(0)), (b.x.value(0)+x_n*30,b.y.value(0)+y_n*30) , 1)
+
+				# # calcula el producto escalar 
+				# for c in arm:
+				# 	angle_grad_y=b.y.get(c.angle,0)
+				# 	angle_grad_x=b.x.get(c.angle,0)
+
+				# 	producto_escalar=x_n*angle_grad_x+y_n*angle_grad_y
+				# 	angle_velocity=p.max_angle_velocity*norm/100
+				# 	#angle_velocity=p.max_angle_velocity
+				# 	if producto_escalar>angle_velocity:
+				# 		producto_escalar=angle_velocity
+				# 	if producto_escalar<-angle_velocity:
+				# 		producto_escalar=-angle_velocity
+				# 	c.setAngle(c.angle+producto_escalar)
 
 				if p.graphic:
 					pygame.draw.circle(screen, p.black, circle_position, p.circle_radius)
@@ -422,7 +479,7 @@ if __name__ == '__main__':
 	# Generar todas las combinaciones de parámetros
 	parameter_combinations = list(itertools.product(populations, segments, seeds))
 
-	RoboticArm(Parameters(graphic=True, population=1, segments=4, seed=123))
+	RoboticArm(Parameters(graphic=True, population=10, segments=4, seed=123))
 
 	# Ejecutar en paralelo con todos los núcleos disponibles
 	results = []

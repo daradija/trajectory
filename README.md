@@ -2,12 +2,16 @@
 
 ## Objetivos:
 
-- [n-links trayectorias](roboticArm10.md)
-- 2D -> 3D. 
-- obstáculos.
-- Hessiana.
+- [n-links trajectories](roboticArm10.md)
+### New Objective
+- Detect obstacles.
+- 2D -> 3D.
+- Hessian.
 
-## Estudio del estado del arte.
+### New Objective
+- Detect obstacle.
+
+## Art State
 [Fast Derivatives of Rigid Body Dynamics for Control, Optimization and Estimation](https://iit-dlslab.github.io/papers/neunert16simpar.pdf)
 
 
