@@ -29,10 +29,10 @@ class AutoFore:
 		# -1 si no es, n si es el peso n, donde se almacena el gradiente
 		self.peso2id=np.zeros(self.gradientes,dtype=np.int16) # indica el id de la variable que es el peso
 
-		self.value=np.zeros((self.variables,self.poblacion),dtype=np.float32)
-		self.valueFrom=np.zeros(self.variables,dtype=np.float32)
-		self.valueTo=np.zeros(self.variables,dtype=np.float32)
-		self.g=np.zeros((self.variables,self.poblacion,self.gradientes),dtype=np.float32)
+		self.value=np.zeros((self.variables,self.poblacion),dtype=np.float64)
+		self.valueFrom=np.zeros(self.variables,dtype=np.float64)
+		self.valueTo=np.zeros(self.variables,dtype=np.float64)
+		self.g=np.zeros((self.variables,self.poblacion,self.gradientes),dtype=np.float64)
 		self.prohibitedConst=False
 
 
@@ -40,7 +40,7 @@ class AutoFore:
 		# if seed!=0:
 		self.seeder()
 		#random.seed(self.seed.randint())
-		self.learning_rate = (np.random.random((self.gradientes,self.poblacion)) * (0.01 - 0.00001) + 0.00001).astype(np.float32)
+		self.learning_rate = (np.random.random((self.gradientes,self.poblacion)) * (0.01 - 0.00001) + 0.00001).astype(np.float64)
 
 	def seeder(self):
 		np.random.seed(self.seed.randint(0,2**32-1))
@@ -94,12 +94,14 @@ class AutoFore:
 		self.g[dest, :, :] = exponent * (self.value[src, :, np.newaxis] ** (exponent - 1)) * self.g[src, :, :]
 
 	def top(self,dest,src,limit):
-		self.value[dest] = np.where(self.value[src] > self.value[limit], self.value[limit], self.value[src])
-		self.g[dest] = self.g[src]
+		filter=self.value[src] > self.value[limit]
+		self.value[dest] = np.where(filter, self.value[limit], self.value[src])
+		self.g[dest] = 0
 
 	def bottom(self,dest,src,limit):
-		self.value[dest] = np.where(self.value[src] < self.value[limit], self.value[limit], self.value[src])
-		self.g[dest] = self.g[src]
+		filter=self.value[src] < self.value[limit]
+		self.value[dest] = np.where(filter, self.value[limit], self.value[src])
+		self.g[dest] = 0
 
 	# def cos(self,dest,src):
 	# 	self.value[dest] = np.cos(self.value[src])
@@ -222,7 +224,7 @@ class AutoFore:
 	def random(self,valueFrom,valueTo):
 		v=Variable(self)
 		self.seeder()
-		dados=np.random.uniform(valueFrom,valueTo,self.poblacion).astype(np.float32)
+		dados=np.random.uniform(valueFrom,valueTo,self.poblacion).astype(np.float64)
 		self.assign2(v.id2,dados)
 		self.valueTo[v.id2]=valueTo
 		self.valueFrom[v.id2]=valueFrom
@@ -443,7 +445,12 @@ class Variable:
 
 	def get(self,v,pob):
 		return self.nn.g[self.id2,pob,v.idPeso]
-
+	
+	def getAll(self,v):
+		r=Variable(self.nn)
+		r.assign(self.nn.g[self.id2,:,v.idPeso])
+		return r
+		
 	def differentiable(self):
 		if self.nn.nextPeso==self.nn.gradientes:
 			raise Exception("No hay más gradientes")
@@ -570,12 +577,20 @@ class Variable:
 	def __truediv__(self, other):
 		self.checkFirma()
 		v=self.nn.midVar()
+		if not isinstance(other, Variable):
+			aux=self.nn.midVar()
+			aux.assign(other)
+			other=aux
 		self.nn.div(v.id2,self.id2,other.id2)
 		return v
 	
 	def ensureInterval(self,fromValue,toValue):
 		self.nn.top(self.id2,self.id2,toValue.id2)
 		self.nn.bottom(self.id2,self.id2,fromValue.id2)
+		return self
+	
+	def supressGradient(self):
+		self.nn.g[self.id2]=0
 		return self
 
 outTime={}

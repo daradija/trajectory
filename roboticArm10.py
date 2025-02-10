@@ -12,6 +12,8 @@ import itertools
 from collections import defaultdict
 from autoforenumpy3 import AutoFore
 
+np.seterr(over='raise')
+
 class Parameters:
 	def __init__(self,graphic=True,population=10,segments=5,seed=0):
 		self.width = 600
@@ -94,7 +96,7 @@ class Arm:
 		self.y=c[1][2]
 		
 		if self.p.graphic:
-			print(self._fromPoint(center,id),self._fromPoint(c,id))
+			#print(self._fromPoint(center,id),self._fromPoint(c,id))
 			pygame.draw.line(screen, color, self._fromPoint(center,id), self._fromPoint(c,id) , 5)
 
 		for child in self.children:
@@ -167,7 +169,7 @@ class Planer:
 		if p.trajetoryProblem:
 			for i in range(self.p.population):
 				for a in self.arm:
-					a.visible[i]=i==0
+					a.visible[i]=i<=1
 
 	def moveTo(self,circle_position,b):
 		arm=self.arm
@@ -190,25 +192,23 @@ class Planer:
 		# calcula el producto escalar 
 		for c in arm:
 			if p.trajetoryProblem:
-				angle_grad_y=b.y
-				angle_grad_x=b.x
+				angle_grad_y=b.y.getAll(c.angle)
+				angle_grad_x=b.x.getAll(c.angle)
 			else:
 				angle_grad_y=b.y.get(c.angle,0)
 				angle_grad_x=b.x.get(c.angle,0)
 
 			producto_escalar=x_n*angle_grad_x+y_n*angle_grad_y
 			angle_velocity=norm*(p.max_angle_velocity/100)
-			#angle_velocity=p.max_angle_velocity
-
-			# if producto_escalar>angle_velocity:
-			# 	producto_escalar=angle_velocity
-			# if producto_escalar<-angle_velocity:
-			# 	producto_escalar=-angle_velocity
-
-			producto_escalar.ensureInterval(-angle_velocity,angle_velocity)
-
-			print(producto_escalar.value(0),angle_velocity.value(0))
 			
+			# if producto_escalar.value(0)>angle_velocity.value(0):
+			# 	producto_escalar=angle_velocity
+			# else:
+			# 	if producto_escalar.value(0)<-angle_velocity.value(0):
+			# 		producto_escalar=-angle_velocity
+			
+			producto_escalar.ensureInterval(-angle_velocity,angle_velocity)
+			producto_escalar.supressGradient()
 			c.setAngle(c.angle+producto_escalar)
 
 class RoboticArm:
@@ -290,34 +290,38 @@ class RoboticArm:
 				for eye in eyes:
 					eye.draw()
 			
-			suberror=nn.val(0)
-			for c in arm:
-				for eye in eyes:
-					errorAux=eye.error(c)
-					error2=errorAux*errorAux
-					suberror+=error2
-			if error is None:
-				error=suberror
-			else:
-				error+=suberror
+			
+			if p.convergenceProblem:
+				suberror=nn.val(0)
+				for c in arm:
+					for eye in eyes:
+						errorAux=eye.error(c)
+						error2=errorAux*errorAux
+						suberror+=error2
+				if error is None:
+					error=suberror
+				else:
+					error+=suberror
 
 
-			suberror.learn()
+				suberror.learn()
 			#nn.applyDelta(learning_rate,suberror.id2)
-			if ronda%p.checkExitEach==0:
-				minId=error.minId()
-				if 0<=minId:
-					minErrorPerSegment=error.value(minId)/segments
-					print("Segments:",segments,"Population:",pulation,"Seed:",p.random_seed,"Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
-					#print( "Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
-					if minErrorPerSegment<p.convergence:
-						self.time=time.time()-since
-						self.rounds=ronda
-						self.segmentError=minErrorPerSegment
-						break
+			if p.convergenceProblem:
+				if ronda%p.checkExitEach==0:
+					minId=error.minId()
+					if 0<=minId:
+						minErrorPerSegment=error.value(minId)/segments
+						print("Segments:",segments,"Population:",pulation,"Seed:",p.random_seed,"Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
+						#print( "Time:",round(time.time()-since,2),"Rounds:",ronda,"Segment Error:",minErrorPerSegment)
+						if minErrorPerSegment<p.convergence:
+							self.time=time.time()-since
+							self.rounds=ronda
+							self.segmentError=minErrorPerSegment
+							break
 
 			doit=ronda%changePopulationEach==0
-			willDie=error.geneticAlgorithm(doit=doit,killdown=(self.p.population-1)//2)
+			if p.convergenceProblem:
+				willDie=error.geneticAlgorithm(doit=doit,killdown=(self.p.population-1)//2)
 
 			if ronda%changePopulationEach==0:
 				error=None
@@ -331,32 +335,6 @@ class RoboticArm:
 
 			if circle_position:
 				pl.moveTo(circle_position,b)
-
-
-				# # halla el vector normalizado
-				# x_n=circle_position[0]-b.x.value(0)
-				# y_n=circle_position[1]-b.y.value(0)
-				# norm=math.sqrt(x_n**2+y_n**2)
-				# #norm=20000
-				# x_n=x_n/norm
-				# y_n=y_n/norm
-				# # lo dibuja
-				# #pygame.draw.line(screen, p.black, (b.x.value(0),b.y.value(0)), (b.x.value(0)+x_n*30,b.y.value(0)+y_n*30) , 1)
-
-				# # calcula el producto escalar 
-				# for c in arm:
-				# 	angle_grad_y=b.y.get(c.angle,0)
-				# 	angle_grad_x=b.x.get(c.angle,0)
-
-				# 	producto_escalar=x_n*angle_grad_x+y_n*angle_grad_y
-				# 	angle_velocity=p.max_angle_velocity*norm/100
-				# 	#angle_velocity=p.max_angle_velocity
-				# 	if producto_escalar>angle_velocity:
-				# 		producto_escalar=angle_velocity
-				# 	if producto_escalar<-angle_velocity:
-				# 		producto_escalar=-angle_velocity
-				# 	c.setAngle(c.angle+producto_escalar)
-
 				if p.graphic:
 					pygame.draw.circle(screen, p.black, circle_position, p.circle_radius)
 
@@ -485,7 +463,7 @@ if __name__ == '__main__':
 	# Generar todas las combinaciones de parámetros
 	parameter_combinations = list(itertools.product(populations, segments, seeds))
 
-	RoboticArm(Parameters(graphic=True, population=10, segments=4, seed=123))
+	RoboticArm(Parameters(graphic=True, population=2, segments=4, seed=123))
 
 	# Ejecutar en paralelo con todos los núcleos disponibles
 	results = []
